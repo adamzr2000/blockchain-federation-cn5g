@@ -60,7 +60,7 @@ kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | aw
 ### **Uninstall OAI 5G Core**  
 ```bash
 helm uninstall -n oai $(helm list -aq -n oai)
-
+```
 ---
 
 ### **OAI 5G Core Deployment on Docker**
