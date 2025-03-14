@@ -1,4 +1,0 @@
-{
-    "modelPackage"   : "oai.lmf_server.model",
-    "apiPackage"     : "oai.lmf_server.api"
-}
