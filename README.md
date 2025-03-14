@@ -51,3 +51,41 @@ python3 core-network-vm2.py --type start-basic --scenario 1
 ```bash
 python3 core-network-vm2.py --type stop-basic --scenario 1
 ```
+
+
+### OAI 5G Core Configuration with UERANSIM
+
+This table summarizes the **OAI 5G Core configuration**, including **Network Functions (NFs), interconnections, IP addresses, ports, and protocols**.
+
+| **Component** | **Function** | **Network** | **IP Address** | **Port(s)** | **Protocol** |
+|--------------|-------------|------------|--------------|----------|------------|
+| MySQL | Stores subscriber & NF configurations | public_net | 192.168.70.131 | 3306 | MySQL |
+| NRF (Network Repository Function) | Service discovery for all NFs | public_net | 192.168.70.130 | 8080 | HTTP/2 |
+| UDR (Unified Data Repository) | Stores subscriber profiles | public_net | 192.168.70.136 | 8080 | HTTP/2 |
+| UDM (Unified Data Management) | Manages UE profiles & subscription data | public_net | 192.168.70.137 | 8080 | HTTP/2 |
+| AUSF (Authentication Server Function) | Handles user authentication | public_net | 192.168.70.138 | 8080 | HTTP/2 |
+| AMF (Access & Mobility Function) | Handles UE Registration, Authentication | public_net | 192.168.70.132 | 8080, 38412 | HTTP/2, SCTP |
+| SMF (Session Management Function) | Handles UE PDU session establishment | public_net | 192.168.70.133 | 8080, 8805 | HTTP/2, UDP |
+| UPF (User Plane Function) | Routes UE traffic to the Data Network | public_net, public_net_access, public_net_core | 192.168.70.134, 192.168.72.134, 192.168.73.134 | GTP-U (N3), PFCP (N4) | IP Routing |
+| oai-ext-dn (External Data Network) | Simulates external internet | public_net_core | 192.168.73.135 | N/A | IP Routing |
+| UERANSIM (gNB & UE Simulator) | Simulates gNB & UE for testing | public_net, public_net_access | 192.168.70.141, 192.168.72.141 | NGAP (38412), GTP-U | SCTP, UDP |
+
+## Usage
+
+### **Start the OAI 5G Core**
+```bash
+cd oai-cn5g-fed/docker-compose
+docker compose -f docker-compose-basic-vpp-nrf up -d
+```
+
+### **Start UERANSIM**
+```bash
+cd oai-cn5g-fed/docker-compose
+docker compose -f docker-compose-ueransim-vpp.yml up -d
+```
+
+### **Stop Everything**
+```bash
+docker compose -f docker-compose-basic-vpp-nrf down
+docker compose -f docker-compose-ueransim-vpp.yml down
+```
