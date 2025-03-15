@@ -1,18 +1,55 @@
-### **OAI 5G Core Deployment on Kubernetes**
+# OAI 5G Core Deployment on Kubernetes
 
-## **1. Enable IP Forwarding and Packet Forwarding**
-Ensure packet forwarding is enabled for proper network routing: 
+## Table of Contents
+
+- [Pre-requisite](#pre-requisite)
+- [Build a K8S cluster](#build-a-k8s-cluster)
+- [Deploy OAI core and gNB/UE RF simulator](#deploy-oai-core-and-gnb/ue-rf-simulator)
+
+# Pre-requisite
+- Tested on Ubuntu 22.04 VM
+- 4 CPUs and 16GB of RAM
+- Ensure packet forwarding is enabled for proper network routing: 
+  ```bash
+  sudo sysctl -w net.ipv4.conf.all.forwarding=1
+  sudo iptables -P FORWARD ACCEPT
+  ```
+
+## Install Docker
+
+You can install Docker Engine following this [tutorial](https://docs.docker.com/engine/install/ubuntu/)
+
+# Build a K8S cluster
+
+To effortlessly set up a fully-functional, single-node Kubernetes cluster, execute the following command:
 ```bash
-sudo sysctl -w net.ipv4.conf.all.forwarding=1
-sudo iptables -P FORWARD ACCEPT
+curl -sfL https://get.k3s.io | sh -
+```
+> Note: This single-node will function as a server, including all the `datastore`, `control-plane`, `kubelet`, and `container runtime` components necessary to host workload pods. 
+
+After installing k3s, run `./k3s_setup_kubeconfig.sh` to set up the `KUBECONFIG` environment, allowing the user to manage the Kubernetes cluster with `kubectl` without requiring `sudo`, with proper ownership and permissions.
+
+## Install Helm CLI
+
+You can install Helm, the Kubernetes package manager, following this [tutorial](https://helm.sh/docs/intro/install/)
+
+## Install Multus
+
+1. Clone this GitHub repository:
+```bash
+git clone https://github.com/k8snetworkplumbingwg/multus-cni.git
 ```
 
-## **2️. Tested Machine Specifications**
-The deployment was tested on a machine running **Ubuntu 22.04** with **16GB RAM and 4 CPUs**.
+2. Apply the daemonset which installs Multus using kubectl:
+```bash
+cd multus-cni
+cat ./deployments/multus-daemonset-thick.yml | kubectl apply -f -
+```
 
-## **3. Deploy OAI 5GC + gNB/UE RF Simulator**
 
-### **Create Namespace**  
+# Deploy OAI core and gNB/UE RF simulator
+
+1. Create a `oai` namespace where the helm-charts will be deployed in the cluster:
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: v1
@@ -20,48 +57,50 @@ kind: Namespace
 metadata:
   name: oai
   labels:
+    pod-security.kubernetes.io/warn: "privileged"
+    pod-security.kubernetes.io/audit: "privileged"
     pod-security.kubernetes.io/enforce: "privileged"
 EOF
 ```  
 
-### **Install OAI 5G Core**  
+2. Install OAI 5G Core
 ```bash
 cd oai-cn5g-fed
 helm install case1 charts/e2e_scenarios/case1 -n oai
 ```  
 
-### **Verify Core Network Deployment**  
+## Verify core network deployment
 Wait for core network functions to become ready:  
 ```bash
 kubectl wait -n oai --for=condition=ready pod -l app.kubernetes.io/instance=case1 --timeout=3m
 ```  
 
-### **Check gNB Connection to AMF**  
+## Check gNB connection to AMF
 Ensure gNB has successfully set up N2 signaling:  
 ```bash
 kubectl logs -n oai $(kubectl get pods -n oai | grep oai-amf | awk '{print $1}') | grep 'Connected'
 ```  
 
-### **Start and Verify NR-UE**  
+## Verify NR-UE
 ```bash
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=oai-nr-ue --timeout=3m --namespace oai
 ```  
 
-### **Check UE IP Assignment**  
+## Check UE IP assignment 
 ```bash
 kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | awk '{print $1}') -- ip -4 addr show oaitun_ue1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
 ```  
 
-### **Test UE Connectivity (Ping Google)**  
+## Test UE connectivity with external networks 
 ```bash
 kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | awk '{print $1}') -- ping -I oaitun_ue1 -c4 google.es
 ```  
 
-### **Uninstall OAI 5G Core**  
+## Uninstall OAI 5G Core  
 ```bash
 helm uninstall -n oai $(helm list -aq -n oai)
 ```
----
+<!-- ---
 
 ### **OAI 5G Core Deployment on Docker**
 
@@ -157,4 +196,4 @@ docker compose -f docker-compose-ueransim-vpp.yaml up -d
 ```bash
 docker compose -f docker-compose-basic-vpp-nrf.yaml down
 docker compose -f docker-compose-ueransim-vpp.yaml down
-```
+``` -->
