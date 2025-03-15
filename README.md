@@ -23,11 +23,17 @@ You can install Docker Engine following this [tutorial](https://docs.docker.com/
 
 To effortlessly set up a fully-functional, single-node Kubernetes cluster, execute the following command:
 ```bash
-curl -sfL https://get.k3s.io | sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --" sh -s -
 ```
 > Note: This single-node will function as a server, including all the `datastore`, `control-plane`, `kubelet`, and `container runtime` components necessary to host workload pods. 
 
 After installing k3s, run `./k3s_setup_kubeconfig.sh` to set up the `KUBECONFIG` environment, allowing the user to manage the Kubernetes cluster with `kubectl` without requiring `sudo`, with proper ownership and permissions.
+
+To check the CIDR allocations for pods and services in the cluster, run:
+```bash
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{" - "}{.spec.podCIDR}{"\n"}{end}'
+kubectl get svc -A -o wide
+```
 
 ## Install Helm CLI
 
@@ -50,7 +56,7 @@ cat ./deployments/multus-daemonset-thick.yml | kubectl apply -f -
 
 Check that the Multus daemonset is running:
 ```bash
-kubectl get daemonset -n kube-system | grep multus
+kubectl get daemonset -n kube-system kube-multus-ds
 ```
 
 
@@ -112,7 +118,9 @@ kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | aw
 apt update && apt install traceroute
 traceroute -i oaitun_ue1 google.es
 ```  
-
+```bash
+kubectl exec -it -n oai -c upf $(kubectl get pods -n oai | grep oai-upf | awk '{print $1}') -- /bin/bash
+``` 
 ## Uninstall OAI 5G Core  
 ```bash
 helm uninstall -n oai $(helm list -aq -n oai)
