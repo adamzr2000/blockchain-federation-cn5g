@@ -121,6 +121,7 @@ traceroute -i oaitun_ue1 google.es
 ```bash
 kubectl exec -it -n oai -c upf $(kubectl get pods -n oai | grep oai-upf | awk '{print $1}') -- /bin/bash
 ``` 
+
 ## Uninstall OAI 5G Core  
 ```bash
 helm uninstall -n oai $(helm list -aq -n oai)
