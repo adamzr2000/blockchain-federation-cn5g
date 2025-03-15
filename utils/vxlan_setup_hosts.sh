@@ -70,8 +70,8 @@ echo "  Device Interface: $dev_interface"
 echo "  VXLAN IP: $vxlan_ip"
 
 # Enable IP forwarding and load required kernel modules
-echo 1 > /proc/sys/net/ipv4/ip_forward
-echo "Enabling IP forwarding..."
+# echo 1 > /proc/sys/net/ipv4/ip_forward
+# echo "Enabling IP forwarding..."
 # modprobe vxlan
 
 ip link add $vxlan_iface type vxlan id $vxlan_id local $local_ip remote $remote_ip dstport $dst_port dev $dev_interface
