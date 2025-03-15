@@ -35,6 +35,8 @@ You can install Helm, the Kubernetes package manager, following this [tutorial](
 
 ## Install Multus
 
+[Multus](https://github.com/k8snetworkplumbingwg/multus-cni) is the open source project that enables Kubernetes pods to attach to multiple networks
+
 1. Clone this GitHub repository:
 ```bash
 git clone https://github.com/k8snetworkplumbingwg/multus-cni.git
@@ -44,6 +46,11 @@ git clone https://github.com/k8snetworkplumbingwg/multus-cni.git
 ```bash
 cd multus-cni
 cat ./deployments/multus-daemonset-thick.yml | kubectl apply -f -
+```
+
+Check that the Multus daemonset is running:
+```bash
+kubectl get daemonset -n kube-system | grep multus
 ```
 
 
@@ -66,6 +73,7 @@ EOF
 2. Install OAI 5G Core
 ```bash
 cd oai-cn5g-fed
+helm dependency update charts/e2e_scenarios/case1
 helm install case1 charts/e2e_scenarios/case1 -n oai
 ```  
 
@@ -73,6 +81,10 @@ helm install case1 charts/e2e_scenarios/case1 -n oai
 Wait for core network functions to become ready:  
 ```bash
 kubectl wait -n oai --for=condition=ready pod -l app.kubernetes.io/instance=case1 --timeout=3m
+```  
+Check if the core is deployed: 
+```bash
+kubectl get po -n oai
 ```  
 
 ## Check gNB connection to AMF
@@ -95,11 +107,33 @@ kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | aw
 ```bash
 kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | awk '{print $1}') -- ping -I oaitun_ue1 -c4 google.es
 ```  
+```bash
+kubectl exec -it -n oai -c nr-ue $(kubectl get pods -n oai | grep oai-nr-ue | awk '{print $1}') -- /bin/bash
+apt update && apt install traceroute
+traceroute -i oaitun_ue1 google.es
+```  
 
 ## Uninstall OAI 5G Core  
 ```bash
 helm uninstall -n oai $(helm list -aq -n oai)
 ```
+
+| **Component** | **Function** | **Network** | **IP Address** | **Port(s)** | **Protocol** |
+|--------------|-------------|------------|--------------|----------|------------|
+| MySQL | Stores subscriber & NF configurations | public_net | 10.42.0.0/24 | 3306 | MySQL |
+| NRF (Network Repository Function) | Service discovery for all NFs | public_net | 10.42.0.0/24 | 8080 | HTTP/2 |
+| UDR (Unified Data Repository) | Stores subscriber profiles | public_net | 10.42.0.0/24 | 8080 | HTTP/2 |
+| UDM (Unified Data Management) | Manages UE profiles & subscription data | public_net | 10.42.0.0/24 | 8080 | HTTP/2 |
+| AUSF (Authentication Server Function) | Handles user authentication | public_net | 10.42.0.0/24 | 8080 | HTTP/2 |
+| AMF (Access & Mobility Function) | Handles UE Registration, Authentication | public_net | 10.42.0.0/24 | 8080, 38412 | HTTP/2, SCTP |
+| SMF (Session Management Function) | Handles UE PDU session establishment | public_net | 10.42.0.0/24 | 8080, 8805 | HTTP/2, UDP |
+| UPF (User Plane Function) | Routes UE traffic to the Data Network | public_net, public_net_access, public_net_core | 192.168.70.134, 192.168.72.134, 192.168.73.134 | PFCP (N4), GTP-U (N3), N6 | IP Routing |
+| gNB/RN UE (gNB & UE Simulator) | Simulates gNB & UE for testing | public_net, public_net_access | 192.168.70.141, 192.168.72.141 | NGAP (38412), GTP-U | SCTP, UDP |
+| UE Default Network | UE assigned IP and network via SMF | UE PDU Session | Dynamic (e.g., 12.1.1.X) | N/A | IP Routing |
+| Traffic Route Flow (UE → External) | Data traffic from UE to external DN | public_net_access → public_net_core | 12.1.1.X → 12.1.1.1 → 10.42.0.1 | N/A | GTP-U → IP Routing |
+| Traffic Route Flow (UE → Internal NF) | UE signaling traffic to core NFs | public_net | 12.1.1.X → AMF (192.168.70.132) → SMF (192.168.70.133) | 38412 (SCTP), 8080 (HTTP/2) | SCTP, HTTP/2 |
+
+
 <!-- ---
 
 ### **OAI 5G Core Deployment on Docker**

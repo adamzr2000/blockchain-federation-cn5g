@@ -176,14 +176,15 @@ oai-upf:
       routes: ""
       hostInterface: "bond0"
     n6Interface:
-      create: false
+      create: true
       ipAdd: "192.168.22.2"
       name: "n6" 
       netmask: "24"
       ## If you do not have a gateway leave the field empty
       gateway: ""
       ## If you do not want to add any routes in your pod then leave this field empty
-      routes: ""
+      # routes: ""
+      routes: [{'dst': '10.42.10.0/16','gw': '10.5.15.55'}]
       hostInterface: "bond0"
   #NOTE: If the interface you selected for n6 does not have internet access then UE will not be able to reach internet
   resources:

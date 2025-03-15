@@ -38,6 +38,7 @@ podSecurityContext:
   runAsGroup: 0
 
 securityContext:
+ privileged: true # Temporarily added
  capabilities:
     add:
      - NET_ADMIN
