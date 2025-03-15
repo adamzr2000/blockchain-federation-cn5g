@@ -27,7 +27,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--cluster-cidr=10.42.0.0/16 --s
 ```
 > Note: This single-node will function as a server, including all the `datastore`, `control-plane`, `kubelet`, and `container runtime` components necessary to host workload pods. 
 
-After installing k3s, run `./k3s_setup_kubeconfig.sh` to set up the `KUBECONFIG` environment, allowing the user to manage the Kubernetes cluster with `kubectl` without requiring `sudo`, with proper ownership and permissions.
+After installing k3s, run `./utils/k3s_setup_kubeconfig.sh` to set up the `KUBECONFIG` environment, allowing the user to manage the Kubernetes cluster with `kubectl` without requiring `sudo`, with proper ownership and permissions.
 
 To check the CIDR allocations for pods and services in the cluster, run:
 ```bash
@@ -41,24 +41,23 @@ You can install Helm, the Kubernetes package manager, following this [tutorial](
 
 ## Install Multus
 
-[Multus](https://github.com/k8snetworkplumbingwg/multus-cni) is the open source project that enables Kubernetes pods to attach to multiple networks
+[Multus](https://github.com/k8snetworkplumbingwg/multus-cni) is a CNI (Container Network Interface) plugin for Kubernetes that allows pods to connect to multiple networks. This is particularly useful for advanced networking configurations where pods need to interact with multiple interfaces, such as overlay networks or external systems.
 
-1. Clone this GitHub repository:
+1. Add the Helm repository for RKE2 charts and update it:
 ```bash
-git clone https://github.com/k8snetworkplumbingwg/multus-cni.git
+helm repo add rke2-charts https://rke2-charts.rancher.io
+helm repo update
 ```
 
-2. Apply the daemonset which installs Multus using kubectl:
+2. Install Multus CNI using Helm in the `kube-system` namespace:
 ```bash
-cd multus-cni
-cat ./deployments/multus-daemonset-thick.yml | kubectl apply -f -
+helm install multus rke2-charts/rke2-multus -n kube-system --kubeconfig ~/.kube/config --values ./utils/multus-values.yaml
 ```
 
-Check that the Multus daemonset is running:
+3. Check the Multus installation:
 ```bash
-kubectl get daemonset -n kube-system kube-multus-ds
+kubectl get pods --all-namespaces | grep -i multus
 ```
-
 
 # Deploy OAI core and gNB/UE RF simulator
 
