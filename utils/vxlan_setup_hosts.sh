@@ -2,7 +2,7 @@
 
 # Function to display usage information
 usage() {
-    echo "Usage: $0 -l <local_ip> -r <remote_ip> -i <interface_name> -v <vxlan_id> -p <dst_port> -x <ip_range> -a <vxlan_ip>"
+    echo "Usage: $0 -l <local_ip> -r <remote_ip> -i <interface_name> -v <vxlan_id> -p <dst_port> -a <vxlan_ip>"
     echo "  -l <local_ip>        Local IP address"
     echo "  -r <remote_ip>       Remote IP address"
     echo "  -i <interface_name>  Interface name (e.g., enp0s3)"
@@ -12,21 +12,11 @@ usage() {
     exit 1
 }
 
-# Function to validate IP address format
-validate_ip() {
+# Function to generate a unique MAC address from local IP
+generate_mac_from_ip() {
     local ip=$1
-    local valid_ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-    if [[ $ip =~ $valid_ip_regex ]]; then
-        IFS='.' read -r -a octets <<< "$ip"
-        for octet in "${octets[@]}"; do
-            if (( octet < 0 || octet > 255 )); then
-                return 1
-            fi
-        done
-        return 0
-    else
-        return 1
-    fi
+    IFS='.' read -r -a octets <<< "$ip"
+    printf "02:%02x:%02x:%02x:%02x:%02x\n" ${octets[0]} ${octets[1]} ${octets[2]} ${octets[3]} $(( RANDOM % 256 ))
 }
 
 # Parse input arguments
@@ -47,17 +37,8 @@ if [ -z "$local_ip" ] || [ -z "$remote_ip" ] || [ -z "$dev_interface" ] || [ -z 
     usage
 fi
 
-# Validate IP address format
-if ! validate_ip $local_ip; then
-    echo "Invalid local IP address format: $local_ip"
-    exit 1
-fi
-
-if ! validate_ip $remote_ip; then
-    echo "Invalid remote IP address format: $remote_ip"
-    exit 1
-fi
-
+# Generate a unique MAC address based on the local IP
+unique_mac=$(generate_mac_from_ip "$local_ip")
 
 # Create a VXLAN network interface
 vxlan_iface="vxlan$vxlan_id"
@@ -68,13 +49,11 @@ echo "  Remote IP: $remote_ip"
 echo "  Destination Port: $dst_port"
 echo "  Device Interface: $dev_interface"
 echo "  VXLAN IP: $vxlan_ip"
+echo "  Generated MAC Address: $unique_mac"
 
-# Enable IP forwarding and load required kernel modules
-# echo 1 > /proc/sys/net/ipv4/ip_forward
-# echo "Enabling IP forwarding..."
-# modprobe vxlan
-
+# Create the VXLAN interface with the generated MAC address
 ip link add $vxlan_iface type vxlan id $vxlan_id local $local_ip remote $remote_ip dstport $dst_port dev $dev_interface
+ip link set $vxlan_iface address $unique_mac
 
 # Assign the user-provided IP address to the VXLAN interface
 echo -e "\nAssigning IP address '$vxlan_ip' to VXLAN interface '$vxlan_iface'..."
@@ -86,4 +65,4 @@ ip link set $vxlan_iface up
 
 # Verify that the VXLAN interface is correctly configured
 echo -e "\nChecking the list of interfaces for '$vxlan_iface'..."
-ip a | grep $vxlan_iface
+ip a | grep -A 3 $vxlan_iface
