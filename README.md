@@ -9,11 +9,18 @@
 # Pre-requisite
 - Tested on Ubuntu 22.04 VM
 - 4 CPUs and 16GB of RAM
+- **Installed Software Versions:**
+  - **Docker:** v28.0.0
+  - **Docker Compose:** v2.33.0
+  - **K3s:** v1.31.6+k3s1
+  - **Helm:** v3.17.2
 - Ensure packet forwarding is enabled for proper network routing: 
   ```bash
   sudo sysctl -w net.ipv4.conf.all.forwarding=1
   sudo iptables -P FORWARD ACCEPT
   ```
+
+---
 
 ## Install Docker
 
@@ -54,10 +61,29 @@ helm repo update
 helm install multus rke2-charts/rke2-multus -n kube-system --kubeconfig ~/.kube/config --values ./utils/multus-values.yaml
 ```
 
-3. Check the Multus installation:
-```bash
-kubectl get pods --all-namespaces | grep -i multus
+3. Verify that Multus is running:
+```sh
+kubectl get pods -n kube-system | grep multus
 ```
+
+Expected output:
+```
+kube-multus-ds-xxxxxxx    Running
+```
+
+4. Confirm Multus Installation
+Check if Multus is installed and registered as a CNI plugin:
+
+```sh
+sudo ls /var/lib/rancher/k3s/agent/etc/cni/net.d/
+```
+
+You should see:
+```
+00-multus.conf
+```
+
+---
 
 # Deploy OAI core and gNB/UE RF simulator
 
