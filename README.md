@@ -4,7 +4,7 @@
 
 - [Pre-requisite](#pre-requisite)
 - [Build a K8S cluster](#build-a-k8s-cluster)
-- [Deploy OAI core and gNB/UE RF simulator](#deploy-oai-core-and-gnb/ue-rf-simulator)
+- [Deploy OAI core and gNB-UE RF simulator](#deploy-oai-core-and-gnb-ue-rf-simulator)
 
 # Pre-requisite
 - Tested on Ubuntu 22.04 VM
@@ -85,7 +85,7 @@ You should see:
 
 ---
 
-# Deploy OAI core and gNB/UE RF simulator
+# Deploy OAI core and gNB-UE RF simulator
 
 1. Create a `oai` namespace where the helm-charts will be deployed in the cluster:
 ```bash
