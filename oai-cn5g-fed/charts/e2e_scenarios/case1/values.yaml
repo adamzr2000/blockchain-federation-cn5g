@@ -176,7 +176,7 @@ oai-upf:
       routes: ""
       hostInterface: "bond0"
     n6Interface:
-      create: true
+      create: false
       ipAdd: "10.10.10.100"
       name: "n6" 
       netmask: "24"
