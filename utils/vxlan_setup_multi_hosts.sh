@@ -54,27 +54,20 @@ fi
 
 # Create VXLAN interface
 ip link add "$vxlan_iface" type vxlan id "$vni" dstport "$port" dev "$iface" local "$local_ip"
-ip link set "$vxlan_iface" address "$mac"
-
-# Assign IP address
-ip addr add "$vxlan_ip" dev "$vxlan_iface"
-
-# Bring interface up
-ip link set "$vxlan_iface" up
-
-# Clean old FDB entries (if any)
-echo "[*] Cleaning up existing FDB entries for $vxlan_iface"
-bridge fdb show dev "$vxlan_iface" | awk '/dst/ {print $1, $3}' | while read mac dst; do
-    echo "  → Deleting FDB entry: $mac dst $dst"
-    bridge fdb del "$mac" dev "$vxlan_iface" dst "$dst" || true
-done
 
 # Add FDB entries
 echo "[*] Adding FDB entries for remote peers"
 IFS=',' read -ra remotes <<< "$remote_ips"
 for remote in "${remotes[@]}"; do
     echo "  → $remote"
-    bridge fdb add 00:00:00:00:00:00 dev "$vxlan_iface" dst "$remote" 2>/dev/null || true
+    bridge fdb append to 00:00:00:00:00:00 dev "$vxlan_iface" dst "$remote" 2>/dev/null || true
 done
+
+# Assign IP address
+ip addr add "$vxlan_ip" dev "$vxlan_iface"
+
+# Bring interface up
+ip link set "$vxlan_iface" up
+ip link set "$vxlan_iface" address "$mac"
 
 echo "[✔] Multi-host VXLAN setup complete."
