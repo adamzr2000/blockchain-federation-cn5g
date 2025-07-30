@@ -1,13 +1,13 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 -l <local_ip> -i <interface_name> -v <vxlan_id> -p <dst_port> -a <vxlan_ip> -r <remote_ip1,remote_ip2,...>"
-    echo "  -l <local_ip>        Local IP address"
-    echo "  -i <interface_name>  Device interface (e.g., ens3)"
-    echo "  -v <vxlan_id>        VXLAN ID"
-    echo "  -p <dst_port>        VXLAN UDP destination port"
-    echo "  -a <vxlan_ip>        VXLAN interface IP address (e.g., 10.10.10.2/24)"
-    echo "  -r <remote_ips>      Comma-separated list of remote IPs"
+    echo "Usage: $0 -l <local_ip> -i <interface> -v <vxlan_id> -p <port> -b <bridge_ip> -r <remote_ip1,remote_ip2,...>"
+    echo "  -l <local_ip>       Local underlay IP"
+    echo "  -i <interface>      Physical NIC (e.g., ens3)"
+    echo "  -v <vxlan_id>       VXLAN VNI (e.g., 200)"
+    echo "  -p <port>           VXLAN UDP port (e.g., 4789)"
+    echo "  -b <bridge_ip>      Bridge IP (e.g., 192.168.200.1/24)"
+    echo "  -r <remote_ips>     Comma-separated list of remote underlay IPs"
     exit 1
 }
 
@@ -17,39 +17,53 @@ generate_mac_from_ip() {
     printf "02:%02x:%02x:%02x:%02x:%02x\n" ${octets[0]} ${octets[1]} ${octets[2]} ${octets[3]} $(( RANDOM % 256 ))
 }
 
-# Parse arguments
-while getopts "l:r:i:v:p:a:" opt; do
+while getopts "l:i:v:p:b:r:" opt; do
     case ${opt} in
         l ) local_ip=$OPTARG ;;
+        i ) iface=$OPTARG ;;
+        v ) vni=$OPTARG ;;
+        p ) port=$OPTARG ;;
+        b ) bridge_ip=$OPTARG ;;
         r ) remote_ips=$OPTARG ;;
-        i ) dev_interface=$OPTARG ;;
-        v ) vxlan_id=$OPTARG ;;
-        p ) dst_port=$OPTARG ;;
-        a ) vxlan_ip=$OPTARG ;;
         * ) usage ;;
     esac
 done
 
-[ -z "$local_ip" ] || [ -z "$remote_ips" ] || [ -z "$dev_interface" ] || [ -z "$vxlan_id" ] || [ -z "$dst_port" ] || [ -z "$vxlan_ip" ] && usage
+if [[ -z "$local_ip" || -z "$iface" || -z "$vni" || -z "$port" || -z "$bridge_ip" || -z "$remote_ips" ]]; then
+    usage
+fi
 
-vxlan_iface="vxlan$vxlan_id"
-unique_mac=$(generate_mac_from_ip "$local_ip")
+vxlan_iface="vxlan${vni}"
+bridge_iface="br${vni}"
+mac=$(generate_mac_from_ip "$local_ip")
 
-echo -e "\nCreating VXLAN interface '$vxlan_iface'..."
-ip link add $vxlan_iface type vxlan id $vxlan_id local $local_ip dstport $dst_port dev $dev_interface nolearning
+echo "[*] Cleaning up previous interfaces (if any)..."
+ip link del "$vxlan_iface" 2>/dev/null
+ip link del "$bridge_iface" 2>/dev/null
 
-ip link set $vxlan_iface address $unique_mac
-ip addr add $vxlan_ip dev $vxlan_iface
-ip link set $vxlan_iface up
+echo "[*] Creating VXLAN interface $vxlan_iface"
+ip link add "$vxlan_iface" type vxlan id "$vni" dstport "$port" dev "$iface" local "$local_ip" nolearning
+ip link set "$vxlan_iface" address "$mac"
+ip link set "$vxlan_iface" up
 
-# Add static FDB entries for each remote peer
-IFS=',' read -ra REMOTES <<< "$remote_ips"
-for peer_ip in "${REMOTES[@]}"; do
-    peer_mac=$(generate_mac_from_ip "$peer_ip")
-    echo "Adding FDB entry: MAC $peer_mac → $peer_ip"
-    bridge fdb append $peer_mac dev $vxlan_iface dst $peer_ip
+echo "[*] Creating bridge $bridge_iface"
+ip link add "$bridge_iface" type bridge
+ip link set "$bridge_iface" address "$mac"
+ip link set "$bridge_iface" up
+
+echo "[*] Attaching VXLAN interface to bridge"
+ip link set "$vxlan_iface" master "$bridge_iface"
+
+echo "[*] Assigning $bridge_ip to bridge interface"
+ip addr flush dev "$bridge_iface"
+ip addr add "$bridge_ip" dev "$bridge_iface"
+
+echo "[*] Adding FDB entries for remote peers"
+IFS=',' read -ra remotes <<< "$remote_ips"
+for remote in "${remotes[@]}"; do
+    echo "  → $remote"
+    bridge fdb add 00:00:00:00:00:00 dev "$vxlan_iface" dst "$remote"
 done
 
-# Show result
-ip a show $vxlan_iface
+echo "[✔] Multi-host VXLAN setup complete."
 
