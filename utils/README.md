@@ -37,7 +37,7 @@ kubectl get network-attachment-definitions.k8s.cni.cncf.io -A
 ```sh
 sudo ./vxlan_setup_multi_hosts.sh -l 10.5.99.5 -i ens3 -v 200 -p 4789 -b 192.168.200.1/24 -r 10.5.99.6,10.5.15.55
 
-sudo ./vxlan_setup_multi_hosts.sh -l 10.5.99.6 -i ens3 -v 200 -p 4789 -a 192.168.200.2/24 -r 10.5.99.5,10.5.15.55
+sudo ./vxlan_setup_multi_hosts.sh -l 10.5.99.6 -i ens3 -v 200 -p 4789 -b 192.168.200.2/24 -r 10.5.99.5,10.5.15.55
 
-sudo ./vxlan_setup_multi_hosts.sh -l 10.5.15.55 -i eth0 -v 200 -p 4789 -a 192.168.200.3/24 -r 10.5.99.5,10.5.99.6
+sudo ./vxlan_setup_multi_hosts.sh -l 10.5.15.55 -i eth0 -v 200 -p 4789 -b 192.168.200.3/24 -r 10.5.99.5,10.5.99.6
 ```
